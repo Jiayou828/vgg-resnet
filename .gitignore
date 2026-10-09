@@ -1,0 +1,9 @@
+# CIFAR-10 files and generated experiment artifacts
+data/
+results/
+
+# Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
