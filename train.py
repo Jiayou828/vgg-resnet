@@ -52,12 +52,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int)
     parser.add_argument("--num-workers", type=int)
     parser.add_argument("--seed", type=int)
-    parser.add_argument("--device", choices=("auto", "cpu", "cuda"))
+    parser.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"))
     parser.add_argument("--run-name", help="Optional unique name for this run's output folder.")
     return parser.parse_args()
 
 
-def load_config(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
+def load_config(args: argparse.Namespace) -> dict[str, Any]:
     config_path = args.config.expanduser().resolve()
     with config_path.open(encoding="utf-8") as file:
         config = yaml.safe_load(file)
@@ -75,14 +75,14 @@ def load_config(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
         raise ValueError("epochs and batch_size must be positive")
     if config.get("num_workers", -1) < 0:
         raise ValueError("num_workers cannot be negative")
-    if config.get("device") not in ("auto", "cpu", "cuda"):
-        raise ValueError("device must be auto, cpu, or cuda")
+    if config.get("device") not in ("auto", "cpu", "cuda", "mps"):
+        raise ValueError("device must be auto, cpu, cuda, or mps")
 
     project_dir = config_path.parent
     for key in ("data_dir", "output_dir"):
         path = Path(config[key]).expanduser()
         config[key] = (project_dir / path).resolve() if not path.is_absolute() else path.resolve()
-    return config, project_dir
+    return config
 
 
 def seed_everything(seed: int) -> None:
@@ -210,7 +210,12 @@ def make_test_loader(config: dict[str, Any], device: torch.device) -> DataLoader
 def choose_device(name: str) -> torch.device:
     if name == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested but is not available")
-    return torch.device("cuda" if name == "auto" and torch.cuda.is_available() else "cpu" if name == "auto" else name)
+    mps_available = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+    if name == "mps" and not mps_available:
+        raise RuntimeError("MPS was requested but is not available")
+    if name == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "mps" if mps_available else "cpu")
+    return torch.device(name)
 
 
 def run_epoch(
@@ -281,7 +286,7 @@ def append_summary(path: Path, row: dict[str, Any]) -> None:
 
 def main() -> None:
     args = parse_args()
-    config, project_dir = load_config(args)
+    config = load_config(args)
     seed_everything(config["seed"])
     device = choose_device(config["device"])
     model_name = config["model"]

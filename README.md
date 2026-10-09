@@ -22,7 +22,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-程序默认在 CUDA 可用时使用 GPU，否则使用 CPU。可通过 `--device cpu` 或 `--device cuda` 显式指定。首次训练时，torchvision 会自动下载 CIFAR-10 到 `data/`；项目初始化和代码准备本身不会下载数据。
+程序默认依次选择 CUDA、Apple Silicon 的 MPS 或 CPU。可通过 `--device cpu`、`--device cuda` 或 `--device mps` 显式指定。首次训练时，torchvision 会自动下载 CIFAR-10 到 `data/`；项目初始化和代码准备本身不会下载数据。
 
 ## 运行实验
 
